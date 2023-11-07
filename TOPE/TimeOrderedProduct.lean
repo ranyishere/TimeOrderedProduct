@@ -248,8 +248,4 @@ namespace Sequence
   #check prod_sum
 
 
-
-
 -- #eval sum (NatSequence) (0) (10)
-
-e
