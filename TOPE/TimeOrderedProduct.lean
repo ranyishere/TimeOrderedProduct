@@ -1,2 +1,255 @@
-import Mathlib.Topology.Basic
-#check TopologicalSpace
+import Mathlib.Algebra.BigOperators.Ring
+import Mathlib.Algebra.Ring.Pi
+import Mathlib.Data.Real.Basic
+
+namespace Example
+
+  open Finset
+  open BigOperators
+
+  def s : Finset Nat := {1, 2, 3}
+
+  def t (a : Nat) : Finset Nat :=
+    match a with
+      | 1 => {1, 2}
+      | 2 => {3, 4}
+      | 3 => {5, 6}
+      | _ => ∅
+
+  def f (a b : Nat) : Nat := a * b
+
+  -- Applying the prod_sum theorem
+  theorem check : (∏ a in s, ∑ b in t a, f a b) = ∑ p in s.pi t, ∏ x in s.attach, f x.1 (p x.1 x.2) := by
+  rw [prod_sum]
+
+end Example
+
+namespace TestingRing
+  def f (n : ℕ) : ℤ := n * 2  -- Example: f(n) = 2n
+  def g (n : ℕ) : ℤ := n + 1  -- Example: g(n) = n + 1
+  def together := (f + g)
+end TestingRing
+
+/-
+  Let's define sequences
+-/
+namespace Sequence
+
+  -- Our type
+  def Sequence (α : Type _ ) := ℕ → α
+
+  #check default
+
+  -- Probably define induction using Nat.rec
+  /-
+  def induction {α : Type _} (seq : Sequence α) (p : ℕ → Sequence α → Prop )
+    (base : P )
+    : ∀ (n : ℕ), p n seq → p (n + 1) seq :=
+    Nat.rec
+  -/
+
+  -- Empty sequence
+  def mySequence (i : ℕ) : ℕ  :=
+    match i with
+      | _ => 2
+
+  def NatSequence : Sequence ℕ := mySequence
+
+  /-
+    def makeSequence (i: ℕ) (f: ℕ → ℕ ) : Sequence ℕ :=
+      match i with
+      | _ => λ x => f x
+
+    def makeSequence' (f: ℕ → ℕ → ℕ ) (i : ℕ) : Sequence (Sequence ℕ) :=
+      match i with
+      | _ => λ x ↦ (λ y ↦ f x y)
+  -/
+  -- def myOtherSequence (i : ℕ) : Sequence ℕ  := makeSequence i (λ x ↦ x + 1)
+
+  /-
+   Sum
+  -/
+  def sum [Semiring β] {α : Type _} (seq : Sequence α ) (start : ℕ ) (stop : ℕ ) (f : α → β ): β :=
+    if start > stop then 0
+    else f (seq (start)) + sum seq (start + 1) (stop) f
+    decreasing_by sorry
+
+  def empty_sum [Semiring β] {α : Type _ } (seq : Sequence α) (f: α → β) : sum seq 1 0 f = 0 := by
+    unfold sum
+    rfl
+
+  def ident_sum [Semiring β] {α : Type _} (seq : Sequence α) (f: α → β ) : sum seq 0 0 f = f (seq 0) := by
+    unfold sum
+    simp
+    rw [empty_sum]
+    simp
+
+  /-
+    Prod
+  -/
+  def prod [Semiring β] {α  : Type _} (seq : Sequence α )
+    (start : ℕ ) (stop : ℕ ) (f : α → β): β :=
+
+    if start > stop then 1
+    else f (seq start) * prod seq (start + 1) (stop) f
+    decreasing_by sorry
+
+  theorem empty_prod [Semiring β] {α : Type _ } (seq : Sequence α)
+    (f : α → β ): prod seq 1 0 f = 1 := by
+
+    unfold prod
+    simp
+
+  theorem ident_prod [Semiring β] {α : Type _ } (seq : Sequence α)
+    (f : α → β ): prod seq 0 0 f = f (seq 0) := by
+
+    unfold prod
+    simp
+    rw [empty_prod]
+    simp
+
+  /-
+    ∏ ∑ f = ∑ f(x₀) when you product size min is 0 and product max is 1
+  -/
+  theorem empty_prod_sum [Semiring β] {α : Type _} (seq₀ seq₁: Sequence α)
+    (j k: ℕ ) (f : α → β) : prod seq₀ 0 0 (λ x ↦ sum seq₁ j k (λ _ ↦ (f x)) )
+    = sum seq₁ j k (λ _ ↦ (f (seq₀ 0))) := by
+
+    unfold prod
+    rw [empty_prod]
+    simp
+
+  /-
+    ∑ ∏ f = ∏ f(x₀)
+  -/
+  theorem empty_sum_prod [Semiring β] {α : Type _} (seq₀ seq₁ : Sequence α )
+    (j k : ℕ ) (f : α → β) : sum seq₀ 0 0 (λ x ↦ prod seq₁ j k (λ _ ↦(f x) )) = prod seq₁ j k (λ _ ↦(f (seq₀ 0)) ) := by
+
+      unfold sum
+      rw [empty_sum]
+      simp
+
+  /-
+   Pi Type -> Cartesian Product of Sequence with natural number
+              {(1, seq₁), (2, seq₂), ..., (n, seqₙ)}
+
+              This is the same as just defining a sequence from 1 to N
+              and returning the sequence:
+
+              λ n ↦ seqₙ
+  -/
+
+  -- Cartesian Product between sequences.
+
+  -- def pi {α : Type _} {δ : α → Type _} (seq : Sequence α) (t : (a: α) → Sequence (δ a)) : Sequence (∀a, δ a) :=
+  -- λ n, λ a, (t a) n
+
+  -- def Pi.empty {α : Type _} {δ : α → Sort _ } (empty_seq : Sequence α) : ∀ a, δ (empty_seq a)   :=
+    -- fun.
+
+  -- Grab each element in my sequence and pass it to delta
+  -- λ n ↦ (λ y ↦ t (y) n)
+  def pi {α :Type _ } {δ : α → Type _ } (seq : Sequence α )
+         (t : (a: α) → Sequence (δ a) ) (start : ℕ) (stop : ℕ)
+         : Sequence (∀a, δ a) := λ n ↦ λ a ↦ (t a) n
+
+  -- This works, how do we generalize this?
+  def pi' {α :Type _ } (seq : Sequence α ) (t : (a: α) → Sequence ( Sequence ℕ ) ) : Sequence (Sequence ℕ ) :=
+  λ n ↦ t (seq n) n
+
+  -- def pi_2 {α :Type _ } {δ : α → Type _ } (seq : Sequence α ) (t : (a: α) → Sequence ( δ a ) ) : Sequence ((a : ℕ ) →  δ (seq a) ) := by
+  -- induction' seq
+
+  /-
+    Define f here
+  -/
+  def f (a b : ℕ) := a * b
+
+  def t (a : ℕ ) : Sequence (Sequence ℕ) :=
+    match a with
+    | _ => λ x ↦ (λ y ↦ ( x + y))
+
+  def x₀ := 0
+  def x₁ := 1
+
+  -- Same here
+  #eval prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (0) (λ y ↦f x (y x))))
+  #eval sum (pi' (NatSequence) t) (0) (0) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
+
+  -- Difference
+  #eval prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
+  #eval sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
+
+
+  def test₄ : prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
+  = sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
+  := by
+
+  unfold prod
+  simp
+
+  unfold sum
+  simp
+
+  unfold pi'
+  simp
+
+  unfold f
+  unfold t
+  simp
+
+  unfold NatSequence
+  unfold mySequence
+  simp
+
+  unfold sum
+  unfold prod
+  unfold sum
+
+
+  -- TODO: Get these to become equivalent, and why arent they
+  --       Equivalent?
+
+  #eval prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
+  #eval sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
+  --
+
+  -- prod first
+  #eval sum (t x₁) (0) (1) (λ y ↦f x₁ (y x₁))
+  #eval sum (t x₁) (0) (1) (λ y ↦f 2 (y 2))
+
+  -- sum first
+  def initₚ := (pi' (NatSequence) t) 0
+  #eval (pi' (NatSequence) t) 0 1
+  #eval prod (NatSequence) 0 1 (λ y ↦ f y (initₚ  y) )
+  #eval sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
+
+  /- TODO: Need to define this over f that are not just over natural numbers
+           Probably define this over another type β with some nice
+           property such as Ring
+  -/
+  theorem prod_sum {δ: α → Type _ } {seq : Sequence α}
+                   {t: (a: α) → Sequence (δ a)} {f: (a: α) → (δ a) → ℕ}
+                   (lower_bound_prod : ℕ)  (upper_bound_prod : ℕ)
+                   (lower_bound_sum : ℕ) (upper_bound_sum : ℕ) :
+    (prod seq (lower_bound_prod) (upper_bound_prod)
+      (λ x ↦ (sum (t x) lower_bound_sum upper_bound_sum (λ y ↦ f x y )))
+    )
+    = (sum (pi (seq) t) (lower_bound_sum) (upper_bound_sum)
+       (λ x ↦ (prod seq lower_bound_prod upper_bound_prod (λ y ↦ f y (x y))) )
+    ) := by
+
+    induction upper_bound_prod
+    unfold prod
+    simp
+    unfold sum
+    simp
+
+  #check prod_sum
+
+
+
+
+-- #eval sum (NatSequence) (0) (10)
+
+e
