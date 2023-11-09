@@ -16,6 +16,10 @@ namespace Example
       | 3 => {5, 6}
       | _ => ∅
 
+  def check_finset := Finset.pi s t
+  #print s
+  #print check_finset
+
   def f (a b : Nat) : Nat := a * b
 
   -- Applying the prod_sum theorem
@@ -157,6 +161,8 @@ namespace Sequence
   def pi' {α :Type _ } (seq : Sequence α ) (t : (a: α) → Sequence ( Sequence ℕ ) ) : Sequence (Sequence ℕ ) :=
   λ n ↦ t (seq n) n
 
+
+
   -- def pi_2 {α :Type _ } {δ : α → Type _ } (seq : Sequence α ) (t : (a: α) → Sequence ( δ a ) ) : Sequence ((a : ℕ ) →  δ (seq a) ) := by
   -- induction' seq
 
@@ -171,6 +177,7 @@ namespace Sequence
 
   def x₀ := 0
   def x₁ := 1
+  def x₂ := 2
 
   -- Same here
   #eval prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (0) (λ y ↦f x (y x))))
@@ -180,39 +187,62 @@ namespace Sequence
   #eval prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
   #eval sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
 
+  /-
+    #eval f 2 4
+    #eval (t x₀) (0) (2)
+    #eval (t x₁) (0) (2)
+    #eval (sum (t x₁) (1) (1) (λ y ↦f x₁ (y x₁)))
+    #eval (sum (t x₂) (0) (1) (λ y ↦f x₂ (y x₂)))
+  -/
 
-  def test₄ : prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
-  = sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
-  := by
+  #eval prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
 
+
+  theorem test₅ : prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x)))) = 100 := by
   unfold prod
-  simp
-
+  unfold prod
   unfold sum
-  simp
-
-  unfold pi'
-  simp
-
+  unfold sum
   unfold f
   unfold t
   simp
 
-  unfold NatSequence
-  unfold mySequence
-  simp
+  #eval sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
+  #eval t 4 0 0
 
-  unfold sum
-  unfold prod
-  unfold sum
+  def test₄ : prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
+  = sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
+  → false := by
 
+    unfold prod
+    simp
+
+    unfold sum
+    simp
+
+    unfold f
+    unfold t
+    simp
+
+    unfold NatSequence
+    unfold mySequence
+    simp
+
+    unfold sum
+    unfold prod
+    unfold sum
+
+    unfold pi'
+
+    simp
 
   -- TODO: Get these to become equivalent, and why arent they
   --       Equivalent?
-
   #eval prod NatSequence (0) (1) (λ x ↦ (sum (t x) (0) (1) (λ y ↦f x (y x))))
+  -- The above evaluates to 100
+
   #eval sum (pi' (NatSequence) t) (0) (1) (λ x ↦ prod (NatSequence) 0 1 (λ y ↦ f y (x y) ))
-  --
+  -- The above evaluates to 52
 
   -- prod first
   #eval sum (t x₁) (0) (1) (λ y ↦f x₁ (y x₁))
@@ -248,4 +278,8 @@ namespace Sequence
   #check prod_sum
 
 
+
+
 -- #eval sum (NatSequence) (0) (10)
+
+end Sequence
