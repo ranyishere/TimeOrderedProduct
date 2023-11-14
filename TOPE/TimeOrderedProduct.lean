@@ -19,6 +19,9 @@ namespace Example
   def check_finset := Finset.pi s t
   #print s
   #print check_finset
+  #print Finset.pi
+  #print Multiset.pi
+
 
   def f (a b : Nat) : Nat := a * b
 
@@ -39,10 +42,20 @@ end TestingRing
 -/
 namespace Sequence
 
+  -- inductive
+
   -- Our type
   def Sequence (α : Type _ ) := ℕ → α
 
-  #check default
+  def mkSequence (α : Type _) := Sequence α
+
+  -- Empty Sequence
+  instance [Inhabited α] : EmptyCollection (Sequence α) where
+    emptyCollection := fun _ => default
+
+  -- Sequence membership
+  instance [DecidableEq α] : Membership α (Sequence α) where
+    mem a seq := ∃ n : ℕ, seq n = a
 
   -- Probably define induction using Nat.rec
   /-
@@ -52,23 +65,31 @@ namespace Sequence
     Nat.rec
   -/
 
-  -- Empty sequence
   def mySequence (i : ℕ) : ℕ  :=
     match i with
       | _ => 2
 
   def NatSequence : Sequence ℕ := mySequence
 
-  /-
-    def makeSequence (i: ℕ) (f: ℕ → ℕ ) : Sequence ℕ :=
-      match i with
-      | _ => λ x => f x
+  #check 2 ∈ NatSequence
 
-    def makeSequence' (f: ℕ → ℕ → ℕ ) (i : ℕ) : Sequence (Sequence ℕ) :=
-      match i with
-      | _ => λ x ↦ (λ y ↦ f x y)
+  #check Exists.intro
+
+  theorem check₅ : NatSequence 2 = 2 := by
+    simp
+
+  -- Proving that 2 ∈ NatSequence
+  theorem check₄ : 2 ∈ NatSequence :=
+    ⟨_, check₅⟩
+
+  -- theorem check₇ (a : ℕ ): NatSequence a ≠ 3 := by
+  -- intro h
+
+  -- theorem check₆ (a : ℕ): (3 ∉ NatSequence) ↔ (NatSequence a ≠ 3 ) := by
+
+  /-
+    TODO: Big Operators
   -/
-  -- def myOtherSequence (i : ℕ) : Sequence ℕ  := makeSequence i (λ x ↦ x + 1)
 
   /-
    Sum
@@ -133,15 +154,25 @@ namespace Sequence
       rw [empty_sum]
       simp
 
+  def empty_pi {α : Type _} {δ : α → Sort _} : ∀ a ∈ emptyCollection, δ a := fun .
+
   /-
    Pi Type -> Cartesian Product of Sequence with natural number
-              {(1, seq₁), (2, seq₂), ..., (n, seqₙ)}
+              {(1, seq₁), (1, seq₂), … ,(2, seq₁), (2, seq₂), …, (n, seqₙ)}
 
               This is the same as just defining a sequence from 1 to N
               and returning the sequence:
 
               λ n ↦ seqₙ
   -/
+
+  -- We need to define the cartesian product over sequences to
+  -- adequately define pi types
+  def pi {α :Type _ } {δ : α → Type _ } (seq : Sequence α )
+         (t : (a: α) → Sequence (δ a) )
+         : Sequence (∀a, δ a) :=
+         _
+
 
   -- Cartesian Product between sequences.
 
@@ -162,6 +193,27 @@ namespace Sequence
   λ n ↦ t (seq n) n
 
 
+  def pi'' {α : Type _} (seq : Sequence α) (t : (a : α) → )
+
+  def pi_3 [DecidableEq α] {β : α → Type u} (m : Multiset α) (t : ∀ a, Multiset (β a)) : Multiset (∀ a ∈ m, β a) :=
+
+    m.recOn {Multiset.Pi.empty β}
+      (fun a m (p : Multiset (∀ a ∈ m, β a)) => (t a).bind fun b => p.map <| Multiset.Pi.cons m a b)
+      (byA Playthrough of a Certain Dude's VRMMO Life
+        intro a a' m n
+        by_cases eq : a = a'
+        · subst eq; rfl
+        · simp [Multiset.map_bind, Multiset.bind_bind (t a') (t a)]
+          apply Multiset.bind_hcongr
+          · rw [Multiset.cons_swap a a']
+          intro b _
+          apply Multiset.bind_hcongr
+          · rw [Multiset.cons_swap a a']
+          intro b' _
+          apply Multiset.map_hcongr
+          · rw [Multiset.cons_swap a a']
+          intro f _
+          exact Multiset.Pi.cons_swap eq)
 
   -- def pi_2 {α :Type _ } {δ : α → Type _ } (seq : Sequence α ) (t : (a: α) → Sequence ( δ a ) ) : Sequence ((a : ℕ ) →  δ (seq a) ) := by
   -- induction' seq
@@ -174,6 +226,17 @@ namespace Sequence
   def t (a : ℕ ) : Sequence (Sequence ℕ) :=
     match a with
     | _ => λ x ↦ (λ y ↦ ( x + y))
+
+  def t' (a : ℕ ) : Sequence ( ℕ ) :=
+    match a with
+    | 1 => λ _ ↦ 1
+    | 2 => λ _ ↦ 2
+    | 3 => λ _ ↦ 3
+    | 4 => λ _ ↦ 4
+    | _ => ∅
+
+
+  -- Cartesian product of the sequences
 
   def x₀ := 0
   def x₁ := 1
@@ -268,7 +331,6 @@ namespace Sequence
     = (sum (pi (seq) t) (lower_bound_sum) (upper_bound_sum)
        (λ x ↦ (prod seq lower_bound_prod upper_bound_prod (λ y ↦ f y (x y))) )
     ) := by
-
     induction upper_bound_prod
     unfold prod
     simp
