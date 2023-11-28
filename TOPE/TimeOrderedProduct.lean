@@ -88,10 +88,6 @@ namespace Sequence
   -- theorem check₆ (a : ℕ): (3 ∉ NatSequence) ↔ (NatSequence a ≠ 3 ) := by
 
   /-
-    TODO: Big Operators
-  -/
-
-  /-
    Sum
   -/
   def sum [Semiring β] {α : Type _} (seq : Sequence α ) (start : ℕ ) (stop : ℕ ) (f : α → β ): β :=
@@ -339,7 +335,10 @@ namespace Sequence
 
   #check prod_sum
 
+  def seq₁ { α : Type _} {x : α } [Semiring α] : Sequence α := fun _ => x
+  def seq₂ { α : Type _} {y : α } [Semiring α] : Sequence α := fun _ => y
 
+  #check sum (@seq₁ ℕ )  1 10
 
 
 -- #eval sum (NatSequence) (0) (10)
