@@ -110,10 +110,10 @@ namespace Sequence
   -/
   def prod [Semiring β] {α  : Type _} (seq : Sequence α )
     (start : ℕ ) (stop : ℕ ) (f : α → β): β :=
-
     if start > stop then 1
     else f (seq start) * prod seq (start + 1) (stop) f
-    decreasing_by sorry
+    decreasing_by
+    simp_wf
 
   theorem empty_prod [Semiring β] {α : Type _ } (seq : Sequence α)
     (f : α → β ): prod seq 1 0 f = 1 := by

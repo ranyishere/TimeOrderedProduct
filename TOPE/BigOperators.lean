@@ -1,21 +1,21 @@
-
+import Mathlib.Algebra.BigOperators.Ring
+import Mathlib.Algebra.Ring.Pi
+import Mathlib.Data.Real.Basic
 
 /-
   Define BigOperator Notation for Sequences
 -/
 
-def test (x : Int ) := 2*x + 3
-def test2 (x : Int ) := x + 3
 
-#check Nat.mul_sub_left_distrib
-#check Int
+universe u
 
-theorem test_thm (x₀ x₁: Int) : -(x₀ + x₁) = -x₀ - x₁ := by
-simp
+variable {α : Type u}
 
+def BigOperator (n : ℕ) (init : Type α) := Id.run do
 
-/-
-def test3 (x : Nat ) : test x - test2 x = x := by
-  unfold test
-  unfold test2
-  -/
+  let mut q := init
+
+  for i in [0:n] do 
+    q := i+1
+
+  pure q
