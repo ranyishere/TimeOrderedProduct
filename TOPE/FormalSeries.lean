@@ -6,8 +6,12 @@ import Mathlib.Algebra.Ring.Defs
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Algebra.BigOperators.Basic
 import Mathlib.Analysis.Calculus.IteratedDeriv
+import Mathlib.MeasureTheory.Integral.SetIntegral
+import Mathlib.LinearAlgebra.StdBasis
+import Mathlib.Analysis.SpecialFunctions.Gamma.Beta
 
 import Mathlib.Data.List.Func
+import Mathlib.Algebra.Field.Basic
 
 -- import Mathlib.Algebra.Order.Monoid.Cannonical.Defs
 
@@ -16,7 +20,7 @@ import Mathlib.Data.List.Func
     theorem:
 
     exp(t(H₁ + H₀)) = ∑ₖ₌₀ to ∞ (∫dτ₀ … ∫dτₖ(
-        ∑ₚ₌₁ to k (τₚ - t)
+        ∑ₚ₌₁ to k δ(∑ p=1 to k (τₚ - t))
       )
     exp(τₖH₀)H₁ … exp(τ₀H₀)H₁
   )
@@ -63,6 +67,29 @@ namespace Test1
   noncomputable def myPower : PowerSeries ℕ :=
     2 • PowerSeries.X
 
+  noncomputable def myPower2 : PowerSeries ℕ :=
+    PowerSeries.mk (λ _ ↦ 2 )
+
+  #print myPower
+
+  /-
+    PowerSeries.coeff_mul
+  -/
+  theorem equivPowSeries : PowerSeries.coeff ℕ 1 myPower = PowerSeries.coeff ℕ 3 myPower2 := by
+    unfold myPower2
+    rw [PowerSeries.coeff_mk]
+    unfold myPower
+    unfold X
+    simp
+
+    rw [PowerSeries.coeff_one_X]
+
+    -- rw [PowerSeries.X_eq]
+    -- simp
+
+    -- apply PowerSeries.coeff_monomial_same
+
+
   theorem equiv2 : (PowerSeries.coeff ℕ 1) myPower = 2 := by
     simp [myPower]
 
@@ -71,18 +98,7 @@ namespace Test1
   theorem eqiv2 : (PowerSeries.coeff ℕ) 1 myPower  = 2 := by
     simp [myPower]
 
-  #print equiv2
-
   theorem test3 : 6 = 3 + 3 := by simp
-
-  theorem check [Ring ℕ ] (x : ℕ) : test1 x + test2 x = 6 + 2 * x := by
-    unfold test1
-    unfold test2
-    rw [← add_assoc]
-    rw [two_mul]
-    rw [←  add_assoc]
-    have h₀ (x : ℕ ) : 3 + x + 3 + x = 3 + 3 + x + x := by linarith
-    rw [h₀]
 
   theorem testSeries : PowerSeries ℕ :=
     λ x ↦ (x 0 + 1)
@@ -97,23 +113,166 @@ namespace Test1
 
 end Test1
 
+/-
 
-namespace TestDerivative
+  Look into using this library:
+  Mathlib.MeasureTheory.Integral.SetIntegral
 
-  def myFun (x:ℝ ) := 3 + 2*x
+  Bochner Integral on L₁ Space
+  https://github.com/leanprover-community/mathlib4/blob/
+  a6cf8f57f81f8f3bd96736335bc05d624e610f0e/
+  Mathlib/MeasureTheory/Integral/Bochner.lean#L665-L667
 
-  /-
-    Probably use something like this:
+  Interval Integral
+  https://leanprover-community.github.io/
+  mathlib4_docs/Mathlib/MeasureTheory/
+  Integral/IntervalIntegral.html#intervalIntegral
 
-    https://leanprover-community.github.io/
-    mathlib4_docs/Mathlib/Analysis/
-    Calculus/Deriv/Basic.html#deriv_eq
-  -/
-  theorem testDeriv (x: ℕ) : (deriv myFun x) = 1 := sorry
+  Beta function
+  https://leanprover-community.github.io/
+  mathlib4_docs/Mathlib/Analysis/SpecialFunctions/
+  Gamma/Beta.html
 
-end TestDerivative
+  Need to generalize this to multivariate
+-/
 
 namespace IteratedIntegral
+
+  open MeasureTheory
+  open Complex
+
+  variable {n z: ℕ} {H H₀ H₁ P₀: Matrix (Fin n) (Fin n) ℝ}
+
+  instance normedAddCommGroup : NormedAddCommGroup (Matrix (Fin n) (Fin n) ℝ) :=
+    sorry
+
+  instance normedSpace : NormedSpace ℝ (Matrix (Fin n) (Fin n) ℝ) :=
+    sorry
+
+  noncomputable def myThing (t : ℝ ):= t • (H₀ + H₁)
+
+  noncomputable def checkIntegral {μ : Measure (ℝ)} (f : ℝ → Matrix (Fin n) (Fin n) ℝ ) :=
+    integral μ f
+
+  noncomputable def checkSetIntegral {μ : Measure (ℝ)} (s : Set ℝ ) (f : ℝ → Matrix (Fin n) (Fin n) ℝ ) :=
+    integral (Measure.restrict μ s) f
+
+  #print betaIntegral
+
+  -- noncomputable def beta_function
+
+  /-
+    def iteratedIntegral (n : ℕ) (f : ℕ → Finset (Set ℝ) ): ℕ :=
+      Nat.recOn n 0 (fun x => x+1)
+  -/
+
+  def empty : Matrix (Fin n) (Fin n) ℝ := 0
+
+  /-
+    We need to be able to index into different
+    Sets (that are finite) to
+
+    Add the accumulator
+  -/
+  noncomputable def testMotive {μ : Measure (ℝ ) } (n: ℕ ) (ix : ℕ → Set ℝ )
+    (f : ℝ → Matrix (Fin n) (Fin n) ℝ ) (k : ℕ ) (init : Matrix (Fin n) (Fin n) ℝ)
+    : Matrix (Fin n) (Fin n) ℝ :=
+    match k with
+    | 0 => init
+    | k + 1 => (
+        @checkSetIntegral n μ (ix k) (f)
+      )
+
+  /-
+    TODO:
+    Are you sure you have the motive correct?
+    You need to accumulate at each step k.
+  -/
+  noncomputable def iteratedIntegral {μ : Measure ℝ  } {n : ℕ } (k : ℕ) (ix : ℕ → (Set ℝ) )
+    (f : ℝ → Matrix (Fin n) (Fin n) ℝ )
+    : Matrix (Fin n) (Fin n) ℝ :=
+    Nat.recOn k empty (@testMotive μ n (ix) f)
+
+
+  /-
+    Need to compose each step in the integral.
+
+    TODO: Check if this is correct...
+
+    The bounds if integration are the same, between
+    [0,1].
+
+    I think f needs to take in multiple
+    values of ℝ?
+  -/
+  noncomputable def iteratedIntegral' {μ : Measure ℝ } {n : ℕ} (k : ℕ ) (ix : ℕ → (Set ℝ ) )
+  (f : ℝ → Matrix (Fin n) (Fin n) ℝ ) : Matrix (Fin n) (Fin n) ℝ  :=
+    match k with
+      | 0 => @checkSetIntegral n μ (ix 0) f
+      | k + 1 => @checkSetIntegral n μ (ix k) (
+        fun _ => @iteratedIntegral' μ n k ix f
+  )
+
+#check betaIntegral
+
+/-
+But also use this:
+  https://leanprover-community.github.io/
+  mathlib4_docs/Mathlib/Analysis/SpecialFunctions/
+  Gamma/Basic.html#Complex.Gamma_nat_eq_factorial
+
+  Use this theorem:
+  Gamma_mul_Gamma_eq_betaIntegral
+
+  Note we might have to convert the reals to complex to use the theorems
+  using this function.
+  https://leanprover-community.github.io/mathlib4_docs
+  Mathlib/Data/Complex/Basic.html#Complex.ofReal'
+-/
+
+open DivisionSemiring
+
+#check add_div
+#check div_eq_mul_inv
+
+
+theorem test_thm (a b c d: ℕ ) (h : c ≠ 0 ) : ( a + b = c * d) = ((a + b)/c = d) := calc
+  (a + b = c * d) = ((a + b)/c =  d) := by rw [add_div]
+
+
+#check Gamma_mul_Gamma_eq_betaIntegral
+theorem alt_Gamma_mul_Gamma_eq_betaIntegral (s t : ℂ ) (hs : 0 < s.re) (ht : 0 < t.re) :
+  (Gamma s * Gamma t = Gamma (s + t) * betaIntegral s t) = (
+    (Gamma s * Gamma t)/ Gamma (s + t) = betaIntegral s t ) := by
+    sorry
+
+
+-- def iterateBetaIntegral (s : Finset ℕ ) (τ : s → ℂ ) (p : ∀ (k : s.attach ) , (τ k).re > 0 )
+
+
+theorem isIn (k : ℕ) (s : Finset ℕ ): k + 1 ∈ s →  k ∈ s := by sorry
+
+-- def realBetaIntegral (s t : ℝ) := betaintegral
+
+/-
+  Assume that ∑ iₚ + 1 > 0 and iₚ > 0
+-/
+noncomputable def multivariateBetaIntegral (s : Finset ℕ ) (k : ℕ)
+  (τ : ∀ (i : ℕ ), i ∈ s → ℂ ) (hp : k ∈ s )
+  (p : ∀ (i : ℕ) (hi : i ∈ s), (τ i hi ).re > 0 ) : ℂ :=
+  match k with
+  | 0 => 1
+  | k + 1 => betaIntegral (
+      τ k (@isIn k s hp)) (multivariateBetaIntegral s k τ (@isIn k s hp) p
+    )
+
+
+
+#print Finset.sum
+#check Finset.map
+#print Multiset.sum
+#check List.foldr
+
 
 end IteratedIntegral
 
@@ -127,10 +286,14 @@ namespace RunLengthEncoding
 
   def test := (H₀)^3
 
-  -- def t₀ (l : ℕ):= (H₀ + z • H₁)^l = ∏ x in (Finset.range l), H₀ + z • H₁
-
-
 end RunLengthEncoding
+
+namespace MultinomialDirchletNormalization
+  /-
+    NOTE: You can think of MDN as the weight
+    probability of interactions
+  -/
+end MultinomialDirchletNormalization
 
 namespace TimeOrderedProduct
 
@@ -141,59 +304,18 @@ namespace TimeOrderedProduct
   variable (n : ℕ) (H H₀ H₁ : Matrix (Fin n) (Fin n) ℝ)
   variable (P₀ : ℝ )
   variable (f : ℝ → ℝ )
+  variable {μ : Measure ℝ }
 
   noncomputable def S (t: ℝ ):= P₀ • exp ℝ (t • H)
   noncomputable def S₀ (z : ℕ ) (t: ℝ ):= P₀ • exp ℝ (t • H₀ + H₁ * z)
 
-  instance normedAddCommGroup : NormedAddCommGroup (Matrix (Fin n) (Fin n) ℝ) :=
-    sorry
-
-  instance normedSpace : NormedSpace ℝ (Matrix (Fin n) (Fin n) ℝ) :=
-    sorry
-
   instance nontriviallyNormedField : NontriviallyNormedField ℕ := sorry
-
-  instance nontriviallyNormedFieldUnit : NontriviallyNormedField (Unit →₀ ℕ) := sorry
-
-  instance normedSpaceUnit : NormedSpace (Unit →₀ ℕ )  (Matrix (Fin n) (Fin n) ℝ) :=
-    sorry
-  instance normedAddCommGroupR :  NormedAddCommGroup (ℝ → (Matrix (Fin n) (Fin n) ℝ)) :=
-    sorry
-  instance normedSpaceR : NormedSpace ℕ  (ℝ → Matrix (Fin n) (Fin n) ℝ) :=
-    sorry
-
-  instance normedSpaceR₀ : NormedSpace ℕ  (Matrix (Fin n) (Fin n) ℝ) :=
-    sorry
-
-
-  /-
-    theorem generatingFunction2 (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ) :=
-      λ z ↦ (exp ℝ (t • (H₀ + H₁ * (z 1))))
-    noncomputable def test (t : ℝ) := λ (z: ℕ) ↦ exp ℝ (t • H₀ + H₁ * z)
-  -/
-
-  -- We need to do derivative of S at z = 0
+  instance normedSpaceℕMat  : NormedSpace ℕ  (Matrix (Fin n) (Fin n) ℝ) := sorry
 
   /-
     exp((t⬝H)) = exp(t(H₀ +H₁))
   -/
   theorem addMatrixSplit (t: ℝ ) : (H = H₀ + H₁) →  P₀ •exp ℝ (t • H) = P₀ • (exp ℝ (t • (H₀ + H₁))) := by sorry
-
-  -- variable {𝕜 : Type u} [NontriviallyNormedField 𝕜]
-  -- variable {F : Type v} [NormedAddCommGroup F] [NormedSpace 𝕜 F]
-
-  /-
-  theorem generatingFunction₀ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ) :=
-    λ z ↦ (z 1) • (exp ℝ (t • (H₀ + H₁ * (z 1))))
-  theorem generatingFunction₁ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ) :=
-    deriv (λ z ↦ (exp ℝ (t • (H₀ + H₁ * (z 1)))))
-  -/
-
-  -- #check FormalMultilinearSeries ℝ (Matrix (Fin n) (Fin n) ℝ)
-  -- noncomputable def test_series : PowerSeries ℕ := (λ _ ↦ exp ℕ 3)
-  -- theorem checkEq : PowerSeries.coeff test_series = exp ℕ 3 := sorry
-  -- noncomputable def test₆ (n : ℕ ) (t : ℝ ):= ∑' n, ↑(Nat.factorial n)⁻¹ • (t • (H₀ + H₁ * (z ())))
-
 
   noncomputable def Product₀ {l : List ℕ } (seq : Sequence { x: ℕ // x ∈ l  }  )
     (init : Matrix (Fin n) (Fin n) ℝ )
@@ -201,58 +323,88 @@ namespace TimeOrderedProduct
       BigOp init seq (λ x ↦ λ y ↦ x*y) (λ i ↦ f i)
 
 
+  noncomputable def testFun (t : ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ) :=
+    λ z ↦ PowerSeries.X z
+
+  #check testFun
+  #print testFun
+  #check 2 • PowerSeries.X
+
+
+
+  -- instance : HMul PowerSeries
+
+  #check PowerSeries.mk
+  #check PowerSeries.monomial
+
+  def Z := 1
+
+  -- instance oof : HSMul (ℕ) (PowerSeries ℕ) := by sorry
+  noncomputable def getCoeff (n : ℕ ) := PowerSeries.coeff (ℕ) n
+
+  noncomputable def testSeries : PowerSeries ℕ :=
+    PowerSeries.mk (λ k ↦ 3 • Z)
+
+  #check PowerSeries.coeff
+
+
+  theorem is3 : getCoeff 0 testSeries = 3 := by
+  simp
+
+  #print is3
+
   /-
     Initial Generating Function
   -/
   noncomputable def generatingFunction'₀ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ) :=
-  λ z ↦ (
-      (Nat.factorial (z Unit.unit))⁻¹ • (
-        iteratedDeriv (z Unit.unit ) (λ _ ↦ exp ℝ (t • (H₀ + H₁ * (z Unit.unit ))) ) 0
+  P₀ • PowerSeries.mk (λ k ↦ (
+      (Nat.factorial (k ))⁻¹ • (
+        iteratedDeriv (k  ) (λ _ ↦ exp ℝ (t • (H₀ + Z • H₁ )) ) 0
       )
+    )
   )
 
-  /-
-    noncomputable def generatingFunction₀ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ) :=
-    λ z ↦ exp ℝ (t • (H₀ + H₁ * (z Unit.unit )))
-  -/
-
   noncomputable def generatingFunction'₁ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
+    P₀ • PowerSeries.mk (λ k ↦ (
+      Z^k • (Nat.factorial (k) )⁻¹ • (iteratedDeriv (k) (
       λ _ ↦ ∑' (l : ℕ ), (
-          (↑(Nat.factorial l ))⁻¹ • ((t • (H₀ + H₁ * (z Unit.unit)))^l)
+          (↑(Nat.factorial l ))⁻¹ • ((t • (H₀ + Z • H₁))^l)
         )
       ) 0)
+      )
     )
 
   noncomputable def generatingFunction'₂ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
+    P₀ • PowerSeries.mk (λ k ↦ (
+      Z^k • (Nat.factorial (k) )⁻¹ • (iteratedDeriv (k) (
       λ _ ↦ ∑' (l : ℕ ), (
           (↑(Nat.factorial l ))⁻¹ • ((t • (
-            Finset.sum {0, 1} λ x ↦ H₀^(1-x) * (H₁ * (z Unit.unit))^(x)
+            Finset.sum {0, 1} λ x ↦ H₀^(1-x) * (Z • H₁ )^(x)
             )
           )^l)
         )
       ) 0)
+      )
     )
 
   noncomputable def generatingFunction''₂ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
-      λ _ ↦ ∑' (l : ℕ ), (
-          (↑(Nat.factorial l ))⁻¹ • ((t • (
-            Product₀ n (List.range (l)).attach (H₀+H₁) (
-              λ m ↦ (
-                      m.1 == m.1,
-                      Finset.sum {0, 1} (λ j ↦ H₀^(1-j) * (H₁ * (z Unit.unit))^(j)
+    P₀ • PowerSeries.mk (
+    λ k ↦ (
+      Z^k • (Nat.factorial k )⁻¹ • (iteratedDeriv (k) (
+        λ _ ↦ ∑' (l : ℕ ), (
+            (↑(Nat.factorial l ))⁻¹ • ((t • (
+              Product₀ n (List.range (l)).attach (H₀+H₁) (
+                λ m ↦ (
+                        m.1 == m.1,
+                        Finset.sum {0, 1} (λ j ↦ H₀^(1-j) * (Z • H₁)^(j)
                     )
+                )
+              ))
               )
-            ))
             )
           )
-        )
-      ) 0)
+        ) 0)
+      )
     )
 
   def t₁ (k : ℕ ): ℕ → Finset ℕ
@@ -261,16 +413,17 @@ namespace TimeOrderedProduct
   def t₂ (k l : ℕ ): ℕ → Finset ℕ
     | i => if i <= k then Finset.range (l) else ∅
 
-  -- Do we invoke some axiom of choice??
-  def t₃ (k l a : ℕ ): ℕ → ℕ
-    | i => if i <= k then a
+  -- TODO: Check, do we invoke some axiom of choice?
+  noncomputable def t₃ (k l a : ℕ ): ℕ → ℕ
+    | i => if i <= k then a else l
 
   /-
     FIXME: Need to distribute the t ahead of time
   -/
   noncomputable def generatingFunction₃ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
+   P₀ • PowerSeries.mk (
+    λ k ↦ (
+      Z^k • (Nat.factorial (k) )⁻¹ • (iteratedDeriv (k) (
       λ _ ↦ ∑' (l : ℕ ), (
           (↑(Nat.factorial l ))⁻¹ • ((t • (
             Finset.sum (
@@ -279,7 +432,7 @@ namespace TimeOrderedProduct
               (
                 λ j ↦ (
                   Product₀ n ( (List.range l).attach ) (H₀*H₁) (
-                    λ m ↦(m == m, H₀^(1 - (j m.1 m.2))*((z Unit.unit ) • H₁)^((j m.1 m.2))
+                    λ m ↦(m == m, H₀^(1 - (j m.1 m.2))*(Z • H₁)^((j m.1 m.2))
                       )
                     )
                   )
@@ -290,6 +443,7 @@ namespace TimeOrderedProduct
         )
       ) 0)
     )
+  )
 
   /-
     TODO: Show that you apply iterated deriv to get rid of z
@@ -318,7 +472,8 @@ namespace TimeOrderedProduct
 
   #eval List.Func.get 1 [1,0,3]
 
-  def filterSequenceUpTo {s : Finset ℕ } (k : ℕ ) (st : Finset ((a : ℕ) → a ∈ s  → ℕ)) : Finset ((a : ℕ) → a ∈ s  → ℕ) :=
+  def filterSequenceUpTo {s : Finset ℕ } (k : ℕ ) (st : Finset ((a : ℕ) → a ∈ s  → ℕ))
+    : Finset ((a : ℕ) → a ∈ s  → ℕ) :=
     Finset.filter (addsToK k) st
 
   /-
@@ -332,17 +487,19 @@ namespace TimeOrderedProduct
 
     This is before RLE
   -/
-  noncomputable def generatingFunction₄₀ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      ∑' (l : ℕ ), (
-          (↑(Nat.factorial l ))⁻¹ • ((t • (
-            Finset.sum (
-             filterSequenceUpTo (z Unit.unit) (Finset.pi (Finset.range l ) (t₁ l))
-            )
-              (
-                λ j ↦ (
-                  Product₀ n ( (List.range l).attach ) (H₀*H₁) (
-                    λ m ↦(m == m, H₀^(1 - (j m.1 m.2))*(H₁)^((j m.1 m.2))
+  noncomputable def generatingFunction₄ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
+    P₀ • PowerSeries.mk (
+      λ k ↦ (
+        ∑' (l : ℕ ), (
+            Z^k • (↑(Nat.factorial l ))⁻¹ • ((t • (
+              Finset.sum (
+              filterSequenceUpTo (k) (Finset.pi (Finset.range l ) (t₁ l))
+              )
+                (
+                  λ j ↦ (
+                    Product₀ n ( (List.range l).attach ) (H₀*H₁) (
+                      λ m ↦(m == m, H₀^(1 - (j m.1 m.2))*(H₁)^((j m.1 m.2))
+                        )
                       )
                     )
                   )
@@ -350,7 +507,7 @@ namespace TimeOrderedProduct
               )
             )
           )
-        )
+      )
     )
 
   /-
@@ -386,7 +543,6 @@ namespace TimeOrderedProduct
       | x::xs => if x == 0 then runLengthEncoding (acc+1) xs else
         (acc) :: runLengthEncoding 0 xs
 
-  #eval 1 :: 2:: []
   def runLengthEncoding2 (acc : ℕ) (l : List ℕ ) : List ℕ  :=
     match l with
       | [] => (acc)::[]
@@ -406,6 +562,7 @@ namespace TimeOrderedProduct
 
     Which can be done by supplying the following theorem:
 
+  f is essentially a sequence
   -/
   def rleFin {s : Finset ℕ}
     (acc : ℕ)  (f : (a : ℕ) → a ∈ s  → ℕ) (a : ℕ) (p : a ∈ s ) : ℕ :=
@@ -415,11 +572,9 @@ namespace TimeOrderedProduct
          rleFin (acc+1) f a (getInSet p)
         else rleFin 0 f a (getInSet p)
 
-#check Finset.card
-
 def countOnes {s : Finset ℕ} (a acc : ℕ ) (p : size ∈ s)
   (f : (a : ℕ) → a ∈ s  → ℕ) : ℕ :=
-  match a with
+    match a with
     | a + 1 => f acc (getInSet size p)
 
 
@@ -435,48 +590,29 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
             match h with
               | _ => f a (getInSet p)
 
-
-  -- Somehow we need to define our run length encoding
-  -- Over a Finset of size k instead of l
-  -- At the moment it takes values over l.
-
-  #check Finset.image (λ x ↦ rleFin 0 x ) testw
-
-  /-
-    Need to convert run length encoding
-    (a : ℕ ) → (a ∈ s) → ℕ
-  -/
-  #eval runLengthEncoding 0 [1, 0, 0, 1, 0, 1, 0, 0, 0]
-  #eval runLengthEncoding 0 [0, 0, 0, 1, 0, 0, 1, 0, 0, 0]
-  #eval runLengthEncoding 0 [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1]
-  #eval runLengthEncoding 0 []
-
   /-
     Runlength encoding substitution
 
     Skipping down to equation 5:
   -/
   noncomputable def generatingFunction₅ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      ∑' (l : ℕ ), (
-          (↑(Nat.factorial (l+(z Unit.unit)) ))⁻¹ • ((t • (
-            Finset.sum (
-              filterSequenceUpTo (l) (
-
-                -- After doing rleFin we need the length
-                -- Of the sequence to be k
-
-                  Finset.image (λ x ↦ rleFin 0 x ) (
-                    Finset.pi (Finset.range l ) (t₁ l)
+    P₀ • PowerSeries.mk (
+      λ k ↦ (
+        ∑' (l : ℕ ), (
+            Z^k • (↑(Nat.factorial (l + k ) ))⁻¹ • ((t • (
+              Finset.sum (
+                filterSequenceUpTo (l) (
+                    Finset.image (λ x ↦ rleFin 0 x ) (
+                      Finset.pi (Finset.range l ) (t₁ l)
+                  )
                 )
-
-             )
-            )
-              (
-                λ i ↦ (
-                  Product₀ n ( (List.range (l ) ).attach ) (H₀*H₁) (
-                    λ m ↦(m.1 ≤ (z Unit.unit), H₀*(H₁)^(
-                          i m.1 m.2
+              )
+                (
+                  λ i ↦ (
+                    Product₀ n ( (List.range (l ) ).attach ) (H₀*H₁) (
+                      λ m ↦(m.1 ≤ (k), H₀*(H₁)^(
+                            i m.1 m.2
+                          )
                         )
                       )
                     )
@@ -485,8 +621,10 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
               )
             )
           )
-        )
+      )
     )
+
+  #print Finset.sum
 
   /-
     Turn this 1/(l+k) ! to
@@ -509,17 +647,14 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
 
   theorem test₀ (k l : ℕ ): k ≤ l → x ∈ Finset.range l → x ∈ Finset.range k := by sorry
 
-  #print test₀
-
   lemma ixSum (k l: ℕ ) (p : k ≤ l ):  ∀ f ∈ (Finset.pi (Finset.range k) (t₁ l)),
     (Finset.sum (Finset.range l).attach (λ i ↦ f i.1 (test₀ k l p i.2 ) )) = l := by sorry
-
-  #print ixSum
 
   -- scoped notation "{" p "| ≤ " l "}" => Finset.range (1)
 
   noncomputable def generatingFunction₆ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
+  P₀ • PowerSeries.mk (
+    λ k ↦ (
       ∑' (l : ℕ ), (
           (t • (
             Finset.sum (
@@ -527,7 +662,7 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
               -- This part tells us that every f adds up to l
               filterSequenceUpTo (l) (
                   Finset.image (λ x ↦ rleFin 0 x ) (
-                    Finset.pi (Finset.range (z Unit.unit) ) (t₂ (z Unit.unit) (l))
+                    Finset.pi (Finset.range k ) (t₂ k l)
                 )
                 -- After applying rleFin we should have a sequence of
                 -- size k
@@ -539,19 +674,20 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
                 λ i ↦ (
 
                   Nat.factorial (
-                    Finset.prod ((Finset.range (z Unit.unit )).attach ) (
+                    Finset.prod ((Finset.range k ).attach ) (
                       λ p ↦ i p.1 (p.2)
                     )
                   )
                   • Nat.factorial (
-                      Finset.sum ((Finset.range (z Unit.unit )).attach ) (
+                      Finset.sum ((Finset.range k).attach ) (
                         λ p ↦ i p.1 (p.2)
-                      ) + (z Unit.unit)
+                      ) + k
                     )^(-1)
                   •
-                  Product₀ n ( (List.range (z Unit.unit ) ).attach ) (H₀*H₁) (
+                  Product₀ n ( (List.range k ).attach ) (H₀*H₁) (
 
-                    λ m ↦(m.1 ≤ (z Unit.unit),
+                    λ m ↦(
+                        m.1 ≤ k,
                         Nat.factorial (i m.1 m.2) •
                         H₀ * (H₁)^(i m.1 m.2)
                       )
@@ -563,12 +699,15 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
           )
         )
     )
+  )
 
   /-
+    TODO:
     Need to somehow combine summations
   -/
   noncomputable def generatingFunction₇ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
+  P₀ • PowerSeries.mk (
+    λ k ↦ (
       ∑' (l : ℕ ), (
           (t • (
             Finset.sum (
@@ -576,7 +715,7 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
               -- This part tells us that every f adds up to l
               filterSequenceUpTo (l) (
                   Finset.image (λ x ↦ rleFin 0 x ) (
-                    Finset.pi (Finset.range (z Unit.unit) ) (t₂ (z Unit.unit) (l))
+                    Finset.pi (Finset.range k ) (t₂ k l)
                 )
                 -- After applying rleFin we should have a sequence of
                 -- size k
@@ -588,19 +727,19 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
                 λ i ↦ (
 
                   Nat.factorial (
-                    Finset.prod ((Finset.range (z Unit.unit )).attach ) (
+                    Finset.prod ((Finset.range k).attach ) (
                       λ p ↦ i p.1 (p.2)
                     )
                   )
                   • Nat.factorial (
-                      Finset.sum ((Finset.range (z Unit.unit )).attach ) (
+                      Finset.sum ((Finset.range k).attach ) (
                         λ p ↦ i p.1 (p.2)
-                      ) + (z Unit.unit)
+                      ) + k
                     )^(-1)
                   •
-                  Product₀ n ( (List.range (z Unit.unit ) ).attach ) (H₀*H₁) (
+                  Product₀ n ( (List.range k ).attach ) (H₀*H₁) (
 
-                    λ m ↦(m.1 ≤ (z Unit.unit),
+                    λ m ↦(m.1 ≤ k,
                         Nat.factorial (i m.1 m.2) •
                         H₀ * (H₁)^(i m.1 m.2)
                       )
@@ -612,218 +751,162 @@ def rleFin2 {s : Finset ℕ} {s₀ : Finset ℕ } {p: s₀ ⊆ s }
           )
         )
     )
+  )
 
-  -- def generatingFunction₁₂ (t : ℝ ) :=
-
-  --------------------------------------
+  def set_over_t (t : ℝ ) (n : ℕ) : Set ℝ :=
+    match n with
+    | _ => {τ | 0 ≤ τ ∧ τ ≤ t }
 
   /-
-    Need to construct a function that returns
-    evidence that m ∈ Finset.range (k + 1)
+    What exactly is τ doing?
+
+    You can think of τ as the smooth version of
+    iₚ. The gamma function interpolates between
+    the sequences when iₚ appears
   -/
-
-  noncomputable def testList {t: ℝ } {z : ℕ} (i : ℕ ): (List (Matrix (Fin n) (Fin n) ℝ )) :=
-    match i with
-      | 0 => []
-      | (i + 1) => @testList (t) (z) i ++ [
-            t • (
-                  Finset.sum {H₀, H₁* (z ) } λ x ↦ x
-              )
-        ]
-    decreasing_by
-      simp_wf
-
-  noncomputable def generatingFunction''₃ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
-      λ _ ↦ ∑' (l : ℕ ), (
-            List.prod (@testList n H₀ H₁ t (z Unit.unit) l)
-          )
-      ) 0)
+  noncomputable def myDirac (k : ℕ ) (τ : ℕ → ℝ  ) :=
+    MeasureTheory.Measure.dirac (
+      Finset.sum (Finset.range k) (
+        λ p ↦ (τ p)
+      )
     )
 
-  noncomputable def generatingFunction'₃ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
-      λ _ ↦ ∑' (l : ℕ ), (
-          List.prod (@testList n H₀ H₁ t (z Unit.unit) l)
-          )
-      ) 0)
-    )
+  #check Set.indicator
+  #check Set
 
-  #check Finset.sum {
-      (Finset.sum {0, 1} λ x ↦ x ),  -- J₀
-      (Finset.sum {0, 1} λ x ↦ x ) -- J₁
-  } λ _ ↦3
 
-  def choices : Finset ℕ := {0, 1}
-  def summation_set : Finset ℕ := {0, 1}
+  noncomputable def dirac_delta (x₀ x₁ : ℝ ) := if x₀ ≠  x₁ then 1 else 0
+
+  noncomputable def check (t : ℝ) := 1 - t
 
   /-
-    Note though this enforces an ordering due to how
-    this is defined.
-
-    I need to do a Finset over the functions.
-
-    TODO:
-    Add z and t
-  -/
-  def testList₄  (l : ℕ ) : (Matrix (Fin n) (Fin n) ℝ ) :=
-    match l with
-    | 0 => Finset.sum {0,1} λ x ↦ H₀^(1-x)*(H₁)^(x)
-    | l+1 => Finset.sum {0, 1} λ xₗ ↦ (testList₄ l) * H₀^(1-xₗ)*(H₁)^(xₗ)
-
-  def testList₅ (l : ℕ ) (x : ℕ): (Matrix (Fin n) (Fin n) ℝ) :=
-    match l with
-    | 0 => H₀^(1-x)*(H₁)^x
-    | l+1 => testList₅ l x * H₀^(1-x)*(H₁)^x
-
-  def testList₆ (l : ℕ ) (j : ℕ → ℕ ): (Matrix (Fin n) (Fin n) ℝ) :=
-    match l with
-      | 0 => H₀^(1-(j l))*(H₁)^(j l)
-      | l+1 => testList₆ l j * H₀^(1-(j l))*(H₁)^(j l)
-
-  def t : ℕ → Finset ℕ
-    | n => if n <= 10 then {0, 1} else ∅
-
-  def my_set : Finset ℕ := Finset.range (10)
-  def my_cart := Finset.pi my_set t
-  def is_in : 0 ∈ my_set := by simp
-  def my_sum : ℕ := Finset.sum my_cart (λ x ↦ x 0 (is_in))
-
-  -- #eval my_sum
-  -- syntax (priority := high) "∏"
-
-  noncomputable def generatingFunction'₄ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
-      λ _ ↦ ∑' (l : ℕ ), (
-          @testList₄ n H₀ H₁ l
-          --List.prod (@testList n H₀ H₁ t (z Unit.unit) l)
-          )
-      ) 0)
-    )
-
-    #check Finset.mk
-
-    -- Create a Finite set of J₀, …, Jₗ?
-    #check {2, 3}
-
-  def my_t (a : ℕ) : Finset (ℕ ) :=
-    match a with
-    | 1 => {0, 1}
-    | 2 => {0, 1}
-    | _ => ∅
-
-  #check (Finset.pi {1, 2, 3} my_t).val
-
-  /-
-  noncomputable def generatingFunction'₄ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ (
-      (Nat.factorial (z Unit.unit) )⁻¹ • (iteratedDeriv (z Unit.unit ) (
-      λ _ ↦ (
-        Finset.sum {0,1} λ xₐ ↦ Finset.sum {0,1} λ xₗ↦ (∑' (l : ℕ ), (
-          List.prod (@testList n H₀ H₁ t (z Unit.unit) (l-2))
+    We want to say somthing like
+  noncomputable def generatingFunction₁₂ (t : ℝ): PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
+    PowerSeries.mk (
+        λ k ↦ (
+          Z^k • (@IteratedIntegral.iteratedIntegral' μ n (k) (set_over_t t))
+         λ τ ↦ (
+          dirac_delta 0 (
+              Finset.sum (Finset.range (k)) (
+                λ p ↦ (set_over_t t p) + t
               )
-              * H₀^(1-xₐ)*H₁^(xₐ) * H₀^(1-xₗ)*H₁^(xₗ)
             )
-          )
-      ) 0)
-    )
+          ) •
+          (H₀  + H₁)
+         )
+      )
   -/
 
-  /-
-    Now lets try to show that:
-    exp ℝ (t • (H₀ + H₁ * (z Unit.unit )))
-    = ∑ (k!)^-1 • Π xᵢ
-    where xᵢ = (H₀ + H₁ * (z Unit.unit) ) and
-    the product goes from 0 to k
+open IteratedIntegral
 
-    To prove generatingFunction₀ = generatingFunction₁
-    use:
-    https://leanprover-community.github.io/mathlib4_docs/
-    Mathlib/Analysis/
-    NormedSpace/Exponential.html#NormedSpace.exp_eq_tsum
-  theorem eqvGen' : generatingFunction'₀ = generatingFunction'₁ := by
+
+/-
+  Should take in a run length encoding and return a set of
+  τ.
+
+  How does it know how to return τ? well
+
+  Well τ is actually just the rle
+-/
+
+/-
+  This is my RLE now I just need to pass this to multivariateBetaIntegral
+
+  Q: How do I iterate over the Finite set of my RLE?
+  A: Turned this into a list
+
+  Q: How do I turn my ℕ → ℂ?
+  A: use the toℂ below
+-/
+def toℂ (n : ℕ ) := Complex.ofReal' (@Nat.cast ℝ Real.natCast n)
+
+def convert {l : ℕ } (f : i ∈ Finset.range l → ℕ) (p : i ∈ Finset.range l)
+: i ∈ Finset.range l → ℂ :=
+  fun h => toℂ (f p)
+
+/-
+  RLE set
+-/
+noncomputable def τₚ (l : ℕ ) :=
+  Finset.image (
+      λ x ↦ (rleFin 0 x)
+  ) (Finset.pi (Finset.range l ) (t₁ l))
+
+noncomputable def τApply (l : ℕ ) := List.foldr (
+  λ x ↦ (λ y ↦ (y + x.1) )
+) 0 ((List.range l).attach)
+
+/-
+TimeOrderedProduct.τₚ (l : ℕ) : List ((a : ℕ) → a ∈ Finset.range l → ℕ)
+-/
+
+#check τₚ
+
+#check List.foldr
+
+#check Complex.betaIntegral
+
+
+/-
+  We need something like Finset.sum but not over summation.
+  We need to go over a range k and then foldr?
+
+  The issue is that each element in τₚ requires proof that
+  it is in the range l
+-/
+
+noncomputable def foldrMBI {l : ℕ } (τ : (l: ℕ ) → List ((a : ℕ) → a ∈ Finset.range l → ℕ))
+: ℂ := (
+  (τ l).foldr  (λ u ↦
+      Complex.betaIntegral u
+    )
+  )
+
+def myList := [1, 2, 3]
+def check1 := (List.length myList) - 1
+def listsLength := myList.length
+
+-- theorem isInRange (k : ℕ )
+
+
+/-
+  Q: How to deal with the fact that there are infinite iₚ?
+
+  Q: I need to somehow show that i ∈ Finset.range (k).
+    This is obvious from the fact that I should just be
+    iterating of Finset.range (k) with the function.
+    But multivariateBetaIntegral doesn't know this.
+-/
+noncomputable def generatingFunction₁₂ (t : ℝ) (p : ℕ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
+  P₀ • PowerSeries.mk (
+    λ k ↦ (
+        Z^k • multivariateBetaIntegral (Finset.range (k) ) k (λ i ↦
+          (
+            convert ((τₚ (k)).get! i i)
+          )
+        )
+      )
+  )
+
+
+  #check generatingFunction₇
+  #check generatingFunction₁₂
+
+  theorem gf₀_is_eq_gf₁ : generatingFunction'₀ = generatingFunction'₁ := by
     unfold generatingFunction'₀
     unfold generatingFunction'₁
 
-    funext h
-    rw [exp_eq_tsum]
-    sorry
+  theorem tope : generatingFunction'₀ = generatingFunction₁₂ := calc
+    generatingFunction'₀ = generatingFunction'₁ := by apply gf₀_is_eq_gf₁
+    _ = generatingFunction'₂ := by sorry
+    _ = generatingFunction''₂ := by sorry
+    _ = generatingFunction₃ := by sorry
+    _ = generatingFunction₄ := by sorry
+    _ = generatingFunction₅ := by sorry
+    _ = generatingFunction₆ := by sorry
+    _ = generatingFunction₇ := by sorry
+    _ = generatingFunction₁₂ := by sorry
 
-  #check PowerSeries.mk
-  noncomputable def generatingFunction₁ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ ∑' (l : ℕ ), (
-      ( (t • (H₀ + H₁ * (z Unit.unit )))^l )
-  )
-
-  theorem addToSum (z : ℕ): (H₀ + (z • H₁)) = Finset.sum {H₀, H₁*z} λ x ↦ x:= by sorry
-
-  noncomputable def generatingFunction₂ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ ∑' (l : ℕ ), (
-        ( (
-          t • (
-                Finset.sum {H₀, H₁* (z Unit.unit) } λ x ↦ x
-              )
-        )^l
-      )
-  )
-
-  noncomputable def generatingFunction₃ (t: ℝ ) : PowerSeries (Matrix (Fin n) (Fin n) ℝ ) :=
-    λ z ↦ ∑' (l : ℕ ), (
-        (
-          List.prod (@testList n H₀ H₁ t (z Unit.unit) l)
-        )
-      )
-
-
-  -/
-  /-
-    Apply the derivative
-  -/
-  -- theorem applyDeriv₁ : generatingFunction'₁ = generatingFunction₁ := by sorry
-
-  /-
-  theorem eqvGen : generatingFunction₀ = generatingFunction₁ := by
-    unfold generatingFunction₀
-    unfold generatingFunction₁
-    funext
-    rw [exp_eq_tsum]
-    simp [generatingFunction₀, generatingFunction₁]
-
-    unfold tsum
-    sorry
-  -/
-
-  /-
-    This is one way to define my function of Hᵢ.
-    Another way is perhaps just defining a polynomial
-    https://leanprover-community.github.io/
-    mathlib4_docs/Mathlib/Data/
-    Polynomial/Basic.html#Polynomial.sum
-  -/
-
-  /-
-  def Hᵢ (i : ℕ ) (z : ℕ ): Matrix (Fin n) (Fin n) ℝ :=
-    match i with
-      | 0 => H₀ * z
-      | 1 => H₁ * z
-      | _ => H₀ * z
-  -/
-
-  -- instance SMul : HSMul ℝ (ℕ → Matrix (Fin n) (Fin n) ℝ) := sorry
-
-  /-
-  theorem test₅ (a : ℕ ) : (λ _ ↦ a) Unit.unit = a := by
-    simp
-
-  #print test₅
-
-  theorem test₄ (a b: ℕ) : (λ _ ↦ a) + (λ _ ↦ b) = Finset.sum ({a, b}) (·+·):=  by
-    rw [Finset.sum_eq_add]
-    sorry
-  -/
 
 end TimeOrderedProduct
 
